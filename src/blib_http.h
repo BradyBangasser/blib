@@ -3,10 +3,14 @@
 
 #include <stdlib.h>
 
-enum Blib_Request_Methods {
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum {
     GET,
     POST,
-};
+} Blib_Request_Methods;
 
 struct Header {
     unsigned short int status;
@@ -32,6 +36,13 @@ struct Blib_Response {
 };
 
 /*
+    HTTP method, path, host, HTTP version, headers, number of headers, msg
+    Creates an HTTP message to send to a server
+    returns the http message str
+*/
+const char *createHTTPMsg(const char *, const char *, const char *, double, const char **, size_t, const char *);
+
+/*
     Raw response data, header struct pointer
     Parses the header data out of the raw response and modifies the header in place
     You need to call freeHeader when done with the header to avoid memory leaks
@@ -44,5 +55,9 @@ int parseHeader(const char *, struct Header *);
     Frees the data malloced in parseHeader
 */
 void freeHeader(struct Header *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

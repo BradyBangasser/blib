@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "*.ts": "typescript",
+        "socket.h": "c",
+        "inet.h": "c",
+        "stdlib.h": "c",
+        "netdb.h": "c",
+        "stddef.h": "c",
+        "string.h": "c",
+        "types.h": "c",
+        "unistd.h": "c",
+        "reent.h": "c"
+    },
+    "C_Cpp.loggingLevel": "Debug"
+}
