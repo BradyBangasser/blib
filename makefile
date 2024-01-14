@@ -4,13 +4,21 @@ SRC :=src
 LIB :=LIB
 INCLUDE :=include
 EXE :=libblib.a
+TESTEXE:=test
 OUT :=out
 RM ?=rm
 
 GFLAGS := -I include -Wall
 CFLAGS := 
 CXXFLAGS := 
-TESTFLAGS := -L . -lblib -L lib -lssl -lcrypto -lcrypt32 -lws2_32
+TESTFLAGS := -L . -lblib -L lib -lssl -lcrypto
+
+ifeq ($(OS),Windows_NT)
+	TESTFLAGS := $(TESTFLAGS) -ws2_32 -lcrypt32
+	TESTEXE := $(TESTEXE).exe
+else
+	TESTEXE := $(TESTEXE).out
+endif
 
 CC:=gcc
 CXX:=g++
@@ -37,10 +45,10 @@ $(OUT):
 	mkdir out
 
 clean:
-	$(RM) out/* $(EXE)
+	$(RM) out/* $(EXE) *.out *.exe *.o
 
 test:
 	make $(EXE)
-	g++ test/main.cpp $(GFLAGS) $(TESTFLAGS)
-	./a.exe
-	rm a.exe
+	g++ test/main.cpp -o $(TESTEXE) $(GFLAGS) $(TESTFLAGS)
+	- ./$(TESTEXE)
+	rm $(TESTEXE)

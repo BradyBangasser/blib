@@ -75,7 +75,7 @@ int httpRequestB(int *sock, short secure, const char *method, const char *host, 
             return -1;
         }
 
-        if (secure == 1 && sslCtx != NULL) {
+        if (secure == 1 && sslCtx == NULL) {
             SSL_library_init();
             SSL_load_error_strings();
             OpenSSL_add_ssl_algorithms();
@@ -85,24 +85,32 @@ int httpRequestB(int *sock, short secure, const char *method, const char *host, 
             ssl = SSL_new(sslCtx);
 
             result = SSL_set_fd(ssl, *sock);
-            if (result != 0) {
+            if (result != 1) {
                 cleanup(*sock);
                 return -1;
             }
 
             result = SSL_connect(ssl);
 
-            if (result != 0) {
+            if (result != 1) {
                 cleanup(*sock); 
                 return -1;
             }
+            printf("here\n");
         }
         
         freeaddrinfo(hits);
         hits = NULL;
 
+        if (*msg == '\n' || *msg == 0) {
+            cleanup(*sock);
+            return -1;
+        }
+
         if (secure == 1) {
+            printf("%s %d\n", msg, strlen(msg));
             sentBytes = SSL_write(ssl, msg, strlen(msg));
+            printf("%s %d\n", msg, strlen(msg));
         } else {
             sentBytes = send(*sock, msg, strlen(msg), 0);
         }

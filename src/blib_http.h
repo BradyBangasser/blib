@@ -3,6 +3,10 @@
 
 #include <stdlib.h>
 
+#ifndef BLIB_HTTP_VERSION
+#define BLIB_HTTP_VERSION "1.1"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,11 +40,18 @@ struct Blib_Response {
 };
 
 /*
-    HTTP method, path, host, HTTP version, headers, number of headers, msg
-    Creates an HTTP message to send to a server
+    buf, HTTP method, path, host, headers, number of headers, msg
+    Creates an HTTP message to send to a server, it takes care of memory allocing
+    call freeHttpMsg when done
     returns the http message str
 */
-const char *createHTTPMsg(const char *, const char *, const char *, double, const char **, size_t, const char *);
+void createHttpMsg(char **, const char *, const char *, const char *, const char **, size_t, const char *);
+
+/*
+    buf
+    Frees the memory allocated by createHttpMsg
+*/
+void freeHttpMsg(char **);
 
 /*
     Raw response data, header struct pointer
