@@ -1,6 +1,10 @@
-#include "https_nw.h"
+// fix this, make it safe and easy to use
+#if !defined(_WIN32) && defined(BLIB_UNSAFE)
+
 #include "blib_http.h"
 #include "blib_constants.h"
+
+#include "https_nw.h"
 
 #include <netdb.h>
 #include <sys/socket.h>
@@ -53,7 +57,6 @@ int httpRequestB(int *sock, short secure, const char *method, const char *host, 
         result = getaddrinfo(host, ((secure == 1) ? HTTPS_PORT : HTTP_PORT), &hints, &hits);
 
         if (result != 0) {
-            printf("Here\n");
             return -1;
         }
 
@@ -127,3 +130,5 @@ int httpRequestB(int *sock, short secure, const char *method, const char *host, 
         return read(*sock, buffer, bufSize);
     }
 }
+
+#endif 

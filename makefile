@@ -14,8 +14,9 @@ CXXFLAGS :=
 TESTFLAGS := -L . -lblib -L lib -lssl -lcrypto
 
 ifeq ($(OS),Windows_NT)
-	TESTFLAGS := $(TESTFLAGS) -ws2_32 -lcrypt32
+	TESTFLAGS := $(TESTFLAGS) -lcrypt32 -lWs2_32
 	TESTEXE := $(TESTEXE).exe
+#	RM := del \r \S
 else
 	TESTEXE := $(TESTEXE).out
 endif
@@ -45,6 +46,7 @@ $(OUT):
 	mkdir out
 
 clean:
+# fix windows issues 
 	$(RM) out/* $(EXE) *.out *.exe *.o
 
 test:

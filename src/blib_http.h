@@ -3,6 +3,12 @@
 
 #include <stdlib.h>
 
+#ifndef _WIN32
+#include <sys/types.h>
+#else
+#include <ws2tcpip.h>
+#endif
+
 #ifndef BLIB_HTTP_VERSION
 #define BLIB_HTTP_VERSION "1.1"
 #endif
@@ -11,23 +17,32 @@
 extern "C" {
 #endif
 
-typedef enum {
-    GET,
-    POST,
-} Blib_Request_Methods;
-
 struct Header {
     unsigned short int status;
-    const char *host;
-    const char *path;
-    const char *rawRes;
-    const char *rawHeader;
-    const char *mime;
-    const char **parsedHeaders;
+    char *host;
+    char *path;
+    char *rawRes;
+    char *rawHeader;
+    char *mime;
+    char **parsedHeaders;
 
     size_t headerLen;
     size_t contentLen;
     size_t numberOfHeader;
+};
+
+struct UrlInfo {
+    char *url;
+    char *host;
+    char *path;
+    char *proto;
+    struct addrinfo *addrInfo;
+};
+
+struct Blib_Header {
+    const char *name;
+    const char *value;
+    size_t totalLen;
 };
 
 struct Blib_Response {
@@ -36,8 +51,43 @@ struct Blib_Response {
     */
     const char *httpMessage;
     struct Header* header;
-
+    const char *content;
 };
+
+/*
+    This inits winsock
+    Can be used on any OS
+*/
+inline void initWindows() {
+    #ifdef _WIN32
+    // Why windows why
+    struct WSAData winData;
+    WSAStartup(MAKEWORD(2,2), &winData);
+    #endif
+}
+
+/*
+This cleanup winsock
+Can be used on any OS
+*/
+inline void cleanupWindows() {
+    #ifdef _WIN32
+    WSACleanup();
+    #endif
+}
+
+/*
+    This function converts the Blib_Header struct into a string to put into an http message
+    Adds \r\n to the end of the header
+    You need to call freeHeaderString when done
+    returns a string in the following format: "name: value\r\n"
+*/
+const char *createHeaderString(struct Blib_Header *);
+
+/*
+    Frees the memeory alloced by createHeaderString
+*/
+void freeHeaderString(const char *);
 
 /*
     buf, HTTP method, path, host, headers, number of headers, msg
@@ -45,13 +95,13 @@ struct Blib_Response {
     call freeHttpMsg when done
     returns the http message str
 */
-void createHttpMsg(char **, const char *, const char *, const char *, const char **, size_t, const char *);
+void createHttpMsg(char **, const char *, const char *, const char *, struct Blib_Header*, size_t, const char *);
 
 /*
     buf
     Frees the memory allocated by createHttpMsg
 */
-void freeHttpMsg(char **);
+void freeHttpMsg(char *);
 
 /*
     Raw response data, header struct pointer
@@ -66,6 +116,33 @@ int parseHeader(const char *, struct Header *);
     Frees the data malloced in parseHeader
 */
 void freeHeader(struct Header *);
+
+/*
+    host, port
+    gets the addrinfo
+    supports all operating systems
+    returns a pointer to the addrinfo struct
+*/
+struct addrinfo *blibGetAddrInfo(const char *, const char *);
+
+/*
+    addrinfo pointer
+    frees the addr info 
+*/
+void blibFreeAddrInfo(struct addrinfo *);
+
+/*
+    url
+    This will parse a url
+    returns a pointer to a UrlInfo struct
+    You must call freeUrlInfo when done with the url info
+*/
+struct UrlInfo *getUrlInfo(const char *);
+
+/*
+
+*/
+void freeUrlInfo(struct UrlInfo *);
 
 #ifdef __cplusplus
 }
