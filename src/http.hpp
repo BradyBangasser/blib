@@ -11,8 +11,8 @@ struct RequestOptions {
     bool printProgress = false;
     std::vector<std::string> *headers = NULL;
     const char *content = NULL;
-    const size_t contentLength = 0;
     const char *method = "GET";
+    bool secure = true;
 };
 
 /*

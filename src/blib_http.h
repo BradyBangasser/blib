@@ -2,6 +2,7 @@
 #define BLIB_HTTP_LIB
 
 #include <stdlib.h>
+#include <openssl/ssl.h>
 
 #ifndef _WIN32
 #include <sys/types.h>
@@ -102,6 +103,31 @@ void createHttpMsg(char **, const char *, const char *, const char *, struct Bli
     Frees the memory allocated by createHttpMsg
 */
 void freeHttpMsg(char *);
+
+/*
+    address information
+    create a network socket
+    You must call cleanupSock when done
+    return pointer to socket or null if the socket initation fails
+*/
+int *initSock(struct addrinfo *);
+
+/*
+    pointer to sock
+    shutsdown and free the socket
+*/
+void cleanupSock(int *);
+
+/*
+    socket, struct SSL, struct SSL context
+*/
+void initSSL(int *, SSL **, SSL_CTX **);
+
+/*
+    ssl, ssl ctx
+    frees up the ssl and ssl ctx memory
+*/
+void cleanupSSL(SSL *, SSL_CTX *);
 
 /*
     Raw response data, header struct pointer

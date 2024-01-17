@@ -7,6 +7,6 @@
 
 int main() {
     std::string url = "https://google.com?this";
-    request(url);
+    printf("%x\n", request(url));
     return 0;
 }

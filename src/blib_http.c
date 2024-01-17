@@ -16,6 +16,7 @@
 
 #include <openssl/types.h>
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 
 int *initSock(struct addrinfo *addr) {
     // This deals with windows being special
@@ -29,9 +30,8 @@ int *initSock(struct addrinfo *addr) {
 
 
 void cleanupSock(int *sock) {
-    shutdown(*sock, 0x02);
-
     if (sock != NULL) {
+        shutdown(*sock, 0x02);
         #ifndef _WIN32
         close(*sock);
         #else
@@ -47,11 +47,12 @@ void initSSL(int *sock, SSL **ssl, SSL_CTX **ctx) {
     OpenSSL_add_ssl_algorithms();
 
     *ctx = SSL_CTX_new(SSLv23_client_method());
+    printf("%x ctx\n", (**ctx));
     *ssl = SSL_new(*ctx);
 
     int result = SSL_set_fd(*ssl, *sock);
 
-    if (result != 1) *ssl = NULL;
+    if (result != 1) cleanupSSL(*ssl, *ctx);
 }
 
 void cleanupSSL(SSL *ssl, SSL_CTX *ctx) {
@@ -106,10 +107,10 @@ void createHttpMsg(char **buf, const char *method, const char *path, const char 
         }
     }
 
-    char *baseString = "%s %s HTTP/%s\r\n%sHost: %s\r\n\r\n";
-    size_t msgLen = snprintf(NULL, 0, baseString, method, path, BLIB_HTTP_VERSION, headersString, host) + 2;
+    char *baseString = "%s %s HTTP/%s\r\n%sHost: %s\r\nContent-Length: %lli\r\n\r\n%s\r\n";
+    size_t msgLen = snprintf(NULL, 0, baseString, method, path, BLIB_HTTP_VERSION, headersString, host, strlen(msg), msg) + 2;
     char *httpMsg = (char *) malloc(msgLen * sizeof(char));
-    snprintf(httpMsg, msgLen, baseString, method, path, BLIB_HTTP_VERSION, headersString, host);
+    snprintf(httpMsg, msgLen, baseString, method, path, BLIB_HTTP_VERSION, headersString, host, strlen(msg), msg);
     free(headersString);
     *buf = httpMsg;
 }
@@ -235,6 +236,7 @@ void freeUrlInfo(struct UrlInfo *urlInfo) {
         if (urlInfo->url != NULL) free((char *) urlInfo->url);
         if (urlInfo->addrInfo != NULL) blibFreeAddrInfo(urlInfo->addrInfo);
         free(urlInfo);
+        urlInfo = NULL;
     }
 }
 
@@ -249,5 +251,6 @@ const char *createHeaderString(struct Blib_Header *header) {
 void freeHeaderString(const char *headerString) {
     if (headerString != NULL) {
         free((void *) headerString);
+        headerString = NULL;
     }
 }
