@@ -69,54 +69,47 @@ void cleanupSSL(SSL *ssl, SSL_CTX *ctx) {
 void createHttpMsg(char **buf, const char *method, const char *path, const char *host, struct Blib_Header *headers, size_t headersLen, const char *msg) {
     // This will dynamically allocate memory for the http message
     int i;
-    size_t chars = 0, currentHeaderLen;
-    char *curs = NULL, *headersString = calloc(1, sizeof(char));
+    char *curs = NULL, *headersString = NULL;
     const char *currentHeader;
 
     if (headersLen > 0 && headers != NULL) {
-
         currentHeader = createHeaderString(headers);
-        chars += strlen(currentHeader) + 1;
-        printf("chars %i\n", chars);
-        curs = realloc(headersString, chars * sizeof(char));
+        // Allocs the size of the first header, plus the null character
+        headersString = realloc(headersString, (1 + strlen(currentHeader)) * sizeof(char));
 
         if (curs == NULL) {
-            // Cry
+            // cry
+            *buf = NULL;
         }
         
-        snprintf(headersString, chars, currentHeader);
+        // sprints the headers, and the null character to the string
+        snprintf(headersString, strlen(currentHeader) + 1, currentHeader);
 
         freeHeaderString(currentHeader);
-
-        printf("%s %i %x hs\n", headersString, headersString[chars], &headersString[chars]);
 
         if (headersLen > 1) {
             for (i = 1; i < headersLen; i++) {
                 currentHeader = createHeaderString(headers + i);
-                currentHeaderLen = strlen(currentHeader);
-                chars += currentHeaderLen;
-                printf("%i %x\n", headersString[12], headersString + 12);
-                curs = (char *) realloc(headersString, chars * sizeof(char));
-                printf("%x this\n", curs);
+                // allocs the strlen of the entire header string up to this point plus the size of the current header and a null character
+                headersString = (char *) realloc(headersString, (strlen(headersString) + strlen(currentHeader) + 1) * sizeof(char));
 
-                if (curs != NULL) curs = headersString + strlen(headersString);
+                // Starts writing at the previous headers null character
+                if (headersString != NULL) curs = headersString + strlen(headersString);
                 else {
-                    // Cry
+                    // cry
+                    *buf = NULL;
                 }
 
-                printf("%x %i\n", curs, *curs);
-                snprintf(curs, chars, currentHeader);
-                printf("%s this\n", currentHeader);
+                snprintf(curs, strlen(currentHeader) + 1, currentHeader);
                 freeHeaderString(currentHeader);
             }
         }
     }
 
-    char *baseString = "%s %s HTTP/%s\r\nHost: %s\r\n%s\r\n";
-    printf("%i, %x, %s hs\n", *headersString, headersString, headersString);
-    size_t msgLen = snprintf(NULL, 0, baseString, method, path, BLIB_HTTP_VERSION, host, headersString) + 2;
+    char *baseString = "%s %s HTTP/%s\r\n%sHost: %s\r\n\r\n";
+    size_t msgLen = snprintf(NULL, 0, baseString, method, path, BLIB_HTTP_VERSION, headersString, host) + 2;
     char *httpMsg = (char *) malloc(msgLen * sizeof(char));
-    snprintf(httpMsg, msgLen, baseString, method, path, BLIB_HTTP_VERSION, host, headersString);
+    snprintf(httpMsg, msgLen, baseString, method, path, BLIB_HTTP_VERSION, headersString, host);
     free(headersString);
     *buf = httpMsg;
 }
