@@ -99,7 +99,7 @@ void createHttpMsg(char **buf, const char *method, const char *path, const char 
                 curs = (char *) realloc(headersString, chars * sizeof(char));
                 printf("%x this\n", curs);
 
-                if (curs != NULL) curs--;
+                if (curs != NULL) curs = headersString + strlen(headersString);
                 else {
                     // Cry
                 }

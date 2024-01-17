@@ -3,6 +3,7 @@
 
 #include <string>
 #include <stdio.h>
+#include <string.h>
 
 #define BLIB_HEADER(n, v) { n, v, (strlen(n) + strlen(v)) }
 
@@ -14,9 +15,6 @@ struct Blib_Response *request(std::string url, struct RequestOptions *opts) {
 
     initWindows();
     struct UrlInfo *urlInfo = getUrlInfo(url.c_str());
-
-
-
 
     struct Blib_Header headers[2] = {
         BLIB_HEADER("coc", "ball"),
