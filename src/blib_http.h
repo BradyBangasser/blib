@@ -112,18 +112,13 @@ void freeHttpMsg(char *);
     You must call cleanupSock when done
     return pointer to socket or null if the socket initation fails
 */
-int *initSock(struct addrinfo *);
+int initSock(struct addrinfo *);
 
 /*
     pointer to sock
     shutsdown and free the socket
 */
-void cleanupSock(int *);
-
-/*
-    socket, struct SSL, struct SSL context
-*/
-void initSSL(int *, SSL **, SSL_CTX **);
+void cleanupSock(int);
 
 /*
     ssl, ssl ctx

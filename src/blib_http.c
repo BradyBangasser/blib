@@ -19,40 +19,25 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-int *initSock(struct addrinfo *addr) {
+int initSock(struct addrinfo *addr) {
     // This deals with windows being special
-    int *sock = malloc(sizeof(int));
 
-    *sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    int sock = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
 
-    if (*sock == -1) return NULL;
     return sock;
 }
 
 
-void cleanupSock(int *sock) {
+void cleanupSock(int sock) {
     if (sock != NULL) {
-        shutdown(*sock, 0x02);
+        shutdown(sock, 0x02);
         #ifndef _WIN32
-        close(*sock);
+        close(sock);
         #else
-        closesocket(*sock);
+        closesocket(sock);
         #endif
         free(sock);
     }
-}
-
-void initSSL(int *sock, SSL **ssl, SSL_CTX **ctx) {
-    SSL_library_init();
-    SSL_load_error_strings();
-    OpenSSL_add_ssl_algorithms();
-
-    *ctx = SSL_CTX_new(SSLv23_client_method());
-    *ssl = SSL_new(*ctx);
-
-    int result = SSL_set_fd(*ssl, *sock);
-
-    if (result != 1) cleanupSSL(*ssl, *ctx);
 }
 
 void cleanupSSL(SSL *ssl, SSL_CTX *ctx) {

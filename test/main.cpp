@@ -7,6 +7,11 @@
 
 int main() {
     std::string url = "https://google.com?this";
-    printf("%x\n", request(url));
+    
+    struct RequestOptions opts = {
+        secure: false
+    };
+
+    printf("%x\n", request(url, &opts));
     return 0;
 }

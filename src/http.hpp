@@ -12,6 +12,7 @@ struct RequestOptions {
     std::vector<std::string> *headers = NULL;
     const char *content = NULL;
     const char *method = "GET";
+    // remove this, for testing only
     bool secure = true;
 };
 

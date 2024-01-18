@@ -41,16 +41,17 @@ struct Blib_Response *request(std::string url, struct RequestOptions *opts) {
     char *httpMsg = NULL;
     createHttpMsg(&httpMsg, opts->method, urlInfo->path, urlInfo->host, headers, 10, "fdgadfgadfgsadfg");
 
-    int *sock = initSock(urlInfo->addrInfo);
+    int sock = initSock(urlInfo->addrInfo);
+    printf("%i\n", sock);
 
-    if (sock == NULL) {
+    if (sock == -1) {
         freeHttpMsg(httpMsg);
         freeUrlInfo(urlInfo);
         cleanupWindows();
         return NULL;
     }
 
-    result = connect(*sock, urlInfo->addrInfo->ai_addr, urlInfo->addrInfo->ai_addrlen);
+    result = connect(sock, urlInfo->addrInfo->ai_addr, urlInfo->addrInfo->ai_addrlen);
     printf("%i this\n", result);
 
     char receiveBuffer[RECEIVE_BUFFER_SIZE];
@@ -65,28 +66,23 @@ struct Blib_Response *request(std::string url, struct RequestOptions *opts) {
     if (opts->secure) {
         SSL *ssl = NULL;
         SSL_CTX *ctx = NULL;
-        initSSL(sock, &ssl, &ctx);
 
-        if (ssl == NULL || ctx == NULL) {
-            freeHttpMsg(httpMsg);
-            freeUrlInfo(urlInfo);
-            cleanupWindows();
-            return NULL;
+        SSL_library_init();
+        SSL_load_error_strings();
+        OpenSSL_add_ssl_algorithms();
+
+        ctx = SSL_CTX_new(SSLv23_client_method());
+        ssl = SSL_new(ctx);
+
+        result = SSL_set_fd(ssl, sock);
+        if (result != 1) {
+            printf("here\n");
         }
-
-        printf("%x this 2\n", ssl);
 
         result = SSL_connect(ssl);
 
-        printf("Connected\n");
-
-        SSL_load_error_strings();
-
-        char msg[256];
-
         if (result != 1) {
-            ERR_error_string(SSL_get_error(ssl, result), msg);
-        printf("%s %i\n", msg, result);
+            printf("%i res\n", result);
             freeHttpMsg(httpMsg);
             freeUrlInfo(urlInfo);
             cleanupWindows();
@@ -96,18 +92,20 @@ struct Blib_Response *request(std::string url, struct RequestOptions *opts) {
         freeUrlInfo(urlInfo);
 
         printf("here\n");
-
         result = SSL_write(ssl, httpMsg, strlen(httpMsg));
-
-        printf("%lli\n", result);
 
         result = SSL_read(ssl, receiveBuffer, RECEIVE_BUFFER_SIZE);
 
-        printf("%s\n", receiveBuffer);
-
         cleanupSSL(ssl, ctx);
     } else {
-        printf("here\n");
+        result = send(sock, httpMsg, strlen(httpMsg), 0);
+
+        printf("http res: %i\n", result);
+
+        result = recv(sock, receiveBuffer, RECEIVE_BUFFER_SIZE, 0);
+
+        printf("%s\n", receiveBuffer);
+
         freeUrlInfo(urlInfo);
     }
 
