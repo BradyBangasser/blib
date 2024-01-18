@@ -51,7 +51,7 @@ struct Blib_Response *request(std::string url, struct RequestOptions *opts) {
     }
 
     result = connect(*sock, urlInfo->addrInfo->ai_addr, urlInfo->addrInfo->ai_addrlen);
-    printf("%i\n", result);
+    printf("%i this\n", result);
 
     char receiveBuffer[RECEIVE_BUFFER_SIZE];
 
@@ -74,9 +74,11 @@ struct Blib_Response *request(std::string url, struct RequestOptions *opts) {
             return NULL;
         }
 
-        printf("%x\n", ssl);
+        printf("%x this 2\n", ssl);
 
         result = SSL_connect(ssl);
+
+        printf("Connected\n");
 
         SSL_load_error_strings();
 
@@ -92,6 +94,8 @@ struct Blib_Response *request(std::string url, struct RequestOptions *opts) {
         }
 
         freeUrlInfo(urlInfo);
+
+        printf("here\n");
 
         result = SSL_write(ssl, httpMsg, strlen(httpMsg));
 

@@ -7,6 +7,8 @@ EXE :=libblib.a
 TESTEXE:=test
 OUT :=out
 RM ?=rm
+CXX_STD := c++20
+C_STD := c17
 
 GFLAGS := -I include -Wall
 CFLAGS := 
@@ -37,10 +39,10 @@ $(EXE): $(OBJS)
 $(wildcard $(SRC)/*.c $(SRC)/*.cpp): $(OUT)
 
 $(OUT)/%.cpp.o: $(SRC)/%.cpp $(SRC)/%.hpp
-	$(CXX) $(GFLAGS) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(GFLAGS) -std=$(CXX_STD) $(CXXFLAGS) -c -o $@ $<
 
 $(OUT)/%.c.o: $(SRC)/%.c $(SRC)/%.h
-	$(CC) $(GFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CC) $(GFLAGS) -std=$(C_STD) $(CFLAGS) -c -o $@ $<
 
 $(OUT):
 	mkdir out

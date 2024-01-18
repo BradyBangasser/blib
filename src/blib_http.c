@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #else
 #include <ws2tcpip.h>
 #include <winsock2.h>
@@ -47,7 +48,6 @@ void initSSL(int *sock, SSL **ssl, SSL_CTX **ctx) {
     OpenSSL_add_ssl_algorithms();
 
     *ctx = SSL_CTX_new(SSLv23_client_method());
-    printf("%x ctx\n", (**ctx));
     *ssl = SSL_new(*ctx);
 
     int result = SSL_set_fd(*ssl, *sock);
