@@ -6,11 +6,11 @@
 #include "../src/http.hpp"
 
 int main() {
-    std::string url = "https://google.com?this";
+    std::string url = "https://www.google.com?this";
     
-    struct RequestOptions opts = {
-        secure: false
-    };
+    struct RequestOptions opts;
+    opts.secure = false;
+    
 
     printf("%x\n", request(url, &opts));
     return 0;

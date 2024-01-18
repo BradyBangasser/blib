@@ -98,7 +98,8 @@ struct Blib_Response *request(std::string url, struct RequestOptions *opts) {
 
         cleanupSSL(ssl, ctx);
     } else {
-        result = send(sock, httpMsg, strlen(httpMsg), 0);
+        char *tmpMsg = "GET /";
+        result = send(sock, tmpMsg, strlen(tmpMsg), 0);
 
         printf("http res: %i\n", result);
 
