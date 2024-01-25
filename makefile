@@ -31,7 +31,9 @@ C_SRCS =$(wildcard $(SRC)/*.c)
 
 OBJS :=$(patsubst $(SRC)/%, $(OUT)/%.o, $(wildcard $(SRC)/*.c $(SRC)/*.cpp))
 
-.PHONY: clean test
+.PHONY: clean test rebuild build
+
+build: $(EXE)
 
 $(EXE): $(OBJS)
 	ar rcs $(EXE) $(OBJS)
@@ -46,6 +48,10 @@ $(OUT)/%.c.o: $(SRC)/%.c $(SRC)/%.h
 
 $(OUT):
 	mkdir out
+
+rebuild: 
+	make clean
+	make build
 
 clean:
 # fix windows issues 

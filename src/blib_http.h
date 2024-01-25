@@ -1,8 +1,9 @@
-#ifndef BLIB_HTTP_LIB
-#define BLIB_HTTP_LIB
+#ifndef BLIB_HTTP_LIB_H
+#define BLIB_HTTP_LIB_H
 
 #include <stdlib.h>
 #include <openssl/ssl.h>
+#include "blib_constants.h"
 
 #ifndef _WIN32
 #include <sys/types.h>
@@ -13,25 +14,31 @@
 #endif
 
 #ifndef BLIB_HTTP_VERSION
-#define BLIB_HTTP_VERSION "1.1"
+// This is the version of HTTP that Blib will use for requests
+// I plan to support 1.1 as soon as I figure out 
+#define BLIB_HTTP_VERSION "1.0"
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct Header {
-    unsigned short int status;
-    char *host;
-    char *path;
-    char *rawRes;
-    char *rawHeader;
-    char *mime;
-    char **parsedHeaders;
+// This represents a HTTP message header
+struct Blib_Header {
+    // Header name
+    const char *name;
+    // Header value
+    const char *value;
+};
 
-    size_t headerLen;
-    size_t contentLen;
-    size_t numberOfHeader;
+struct Blib_Response_Header {
+    const unsigned short int status;
+    const char *statusMsg;
+    const char *raw;
+    const struct Blib_Header *parsedHeaders;
+
+    const size_t numberOfHeader;
+    const size_t headerLen;
 };
 
 struct UrlInfo {
@@ -42,18 +49,12 @@ struct UrlInfo {
     struct addrinfo *addrInfo;
 };
 
-struct Blib_Header {
-    const char *name;
-    const char *value;
-    size_t totalLen;
-};
-
 struct Blib_Response {
     /*
         The message sent to the server by the request
     */
     const char *httpMessage;
-    struct Header* header;
+    struct Blib_Response_Header* header;
     const char *content;
 };
 
@@ -64,6 +65,7 @@ struct Blib_Response {
 inline void initWindows() {
     #ifdef _WIN32
     // Why windows why
+    BINFO("Initializing winsock\n");
     struct WSAData winData;
     WSAStartup(MAKEWORD(2,2), &winData);
     #endif
@@ -75,6 +77,7 @@ Can be used on any OS
 */
 inline void cleanupWindows() {
     #ifdef _WIN32
+    BINFO("Cleaning up winsock\n");
     WSACleanup();
     #endif
 }
@@ -90,27 +93,28 @@ const char *createHeaderString(struct Blib_Header *);
 /*
     Frees the memeory alloced by createHeaderString
 */
-void freeHeaderString(const char *);
+void freeHeaderString(const char **);
 
 /*
     buf, HTTP method, path, host, headers, number of headers, msg
     Creates an HTTP message to send to a server, it takes care of memory allocing
     call freeHttpMsg when done
-    returns the http message str
+    Buf will be the msg string on success and NULL on failure
+    returns 0 on success and  <0 on failure
 */
-void createHttpMsg(char **, const char *, const char *, const char *, struct Blib_Header*, size_t, const char *);
+int createHttpMsg(char **, const char *, const char *, const char *, struct Blib_Header *, size_t, const char *);
 
 /*
     buf
     Frees the memory allocated by createHttpMsg
 */
-void freeHttpMsg(char *);
+void freeHttpMsg(char **);
 
 /*
     address information
     create a network socket
     You must call cleanupSock when done
-    return pointer to socket or null if the socket initation fails
+    return socket descripter or -1 if the socket initation fails
 */
 int initSock(struct addrinfo *);
 
@@ -121,24 +125,18 @@ int initSock(struct addrinfo *);
 void cleanupSock(int);
 
 /*
+    Init the openssl library 
+    Pointer to ssl and ssl_ctx struct
+    if this fails, ssl and ssl_ctx will be set to null
+    returns 0 on success, -1 on ctx err, -2 on ssl err, and -3 on fd error
+*/
+int initSSL(int sock, SSL **, SSL_CTX **);
+
+/*
     ssl, ssl ctx
     frees up the ssl and ssl ctx memory
 */
-void cleanupSSL(SSL *, SSL_CTX *);
-
-/*
-    Raw response data, header struct pointer
-    Parses the header data out of the raw response and modifies the header in place
-    You need to call freeHeader when done with the header to avoid memory leaks
-    Returns BLIB_OK on success and an error code on failure
-*/
-int parseHeader(const char *, struct Header *);
-
-/*
-    header struct pointer
-    Frees the data malloced in parseHeader
-*/
-void freeHeader(struct Header *);
+void cleanupSSL(SSL **, SSL_CTX **);
 
 /*
     host, port
@@ -150,9 +148,9 @@ struct addrinfo *blibGetAddrInfo(const char *, const char *);
 
 /*
     addrinfo pointer
-    frees the addr info 
+    frees the addr info and sets the address to null
 */
-void blibFreeAddrInfo(struct addrinfo *);
+void blibFreeAddrInfo(struct addrinfo **);
 
 /*
     url
@@ -163,9 +161,36 @@ void blibFreeAddrInfo(struct addrinfo *);
 struct UrlInfo *getUrlInfo(const char *);
 
 /*
+    Takes in a pointer to a UrlInfo struct
+    Attempts to free it if it isn't null and then sets the val to null
+*/
+void freeUrlInfo(struct UrlInfo **);
+
+/*
 
 */
-void freeUrlInfo(struct UrlInfo *);
+struct Blib_Response_Header *parseResponseHeader(const char *);
+
+/*
+
+*/
+void freeResponseHeader(struct Blib_Response_Header **);
+
+/*
+    TBI
+*/
+int getErrorCode();
+
+/*
+    TBI
+*/
+const char *getErrorMsg();
+
+/*
+    Get the value of a header from a response 
+    returns the string value or NULL
+*/
+const char *getHeaderValue(const struct Blib_Response_Header *, const char *);
 
 #ifdef __cplusplus
 }

@@ -11,7 +11,9 @@
         "unistd.h": "c",
         "reent.h": "c",
         "ws2tcpip.h": "c",
-        "winsock2.h": "c"
+        "winsock2.h": "c",
+        "stdio.h": "c",
+        "time.h": "c"
     },
     "C_Cpp.loggingLevel": "Debug"
 }
