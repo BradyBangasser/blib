@@ -74,7 +74,7 @@ int initSSL(int sock, SSL **ssl, SSL_CTX **ctx) {
         ssl = NULL;
         return -1;
     }
-    BXINFO("Created SSL Content\n");
+    BXINFO("Created SSL Content 0x%x\n", *ctx);
 
     BXINFO("Attempting to create SSL structure\n");
     *ssl = SSL_new(*ctx);
@@ -87,12 +87,12 @@ int initSSL(int sock, SSL **ssl, SSL_CTX **ctx) {
         return -2;
     }
 
-    BXINFO("Successfully created SSL structure");
+    BXINFO("Successfully created SSL structure, 0x%x\n", *ssl);
     BXINFO("Attempting to set SSL file descriptor\n");
     int result = SSL_set_fd(*ssl, sock);
 
     if (result != 1) {
-        err = SSL_get_error(ssl, result);
+        err = SSL_get_error(*ssl, result);
         BXINFO("Error setting SSL file descriptor: %i\n", err);
         cleanupSSL(ssl, ctx);
         return -3;
@@ -104,15 +104,20 @@ int initSSL(int sock, SSL **ssl, SSL_CTX **ctx) {
 }
 
 void cleanupSSL(SSL **ssl, SSL_CTX **ctx) {
+    printf("0x%x 0x%x\n", *ssl, *ctx);
     BXINFO("Attempting to cleanup SSL\n");
-    if (*ctx != NULL) {
-        SSL_CTX_free(*ctx);
-        *ctx = NULL;
+    if (*ssl != NULL) {
+        BXINFO("Freeing struct\n");
+        SSL_free(*ssl);
+        BXINFO("Freeing struct\n");
+        *ssl = NULL;
     }
 
-    if (*ssl != NULL) {
-        SSL_free(*ssl);
-        *ssl = NULL;
+    if (*ctx != NULL) {
+        BXINFO("Freeing context\n");
+        SSL_CTX_free(*ctx);
+        printf("there\n");
+        *ctx = NULL;
     }
 
     BXINFO("Freed\n");
@@ -178,7 +183,7 @@ int createHttpMsg(char **buf, const char *method, const char *path, const char *
                 if (headersString != NULL) curs = headersString + strlen(headersString);
                 else {
                     BXINFO("Error increasing headersString size\n");
-                    freeHeaderString(currentHeader);
+                    freeHeaderString(&currentHeader);
                     // cry
                     *buf = NULL;
                     return -1;
@@ -213,6 +218,8 @@ int createHttpMsg(char **buf, const char *method, const char *path, const char *
     free(headersString);
     *buf = httpMsg;
     BXINFO("Sucess\n");
+
+    return 0;
 }
 
 void freeHttpMsg(char **msg) {
@@ -280,7 +287,7 @@ struct UrlInfo *getUrlInfo(const char *url) {
 
     tok = strstr(urlInfo->url, "://");
     if (tok == NULL) {
-        freeUrlInfo(urlInfo);
+        freeUrlInfo(&urlInfo);
         BXINFO("Invalid URL\n");
         return NULL;
     }
@@ -350,6 +357,7 @@ struct UrlInfo *getUrlInfo(const char *url) {
 
     BXINFO("Getting port no\n");
     char *protoPort = (strcmp(urlInfo->proto, "http") == 0 ? HTTP_PORT : HTTPS_PORT);
+    BXINFO("Success, port: %s\n", protoPort);
 
     urlInfo->addrInfo = blibGetAddrInfo(urlInfo->host, protoPort);
     if (urlInfo->addrInfo == NULL) {
@@ -358,7 +366,7 @@ struct UrlInfo *getUrlInfo(const char *url) {
         return NULL;
     }
 
-    BXINFO("Success, port: %s\n", protoPort);
+    BXINFO("Success\n\n");
 
     return urlInfo;
 }

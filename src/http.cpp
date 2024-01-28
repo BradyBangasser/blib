@@ -9,6 +9,7 @@
 #include <string>
 #include <stdio.h>
 #include <string.h>
+#include <openssl/types.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <stdlib.h>
@@ -26,16 +27,18 @@ using namespace blib_http;
 int _request(const std::string url, const struct RequestOptions *opts, std::string &out, bool writeOutToFile) {
     BINFO("Starting request to %s\n", url.c_str());
 
-    size_t result;
+    int64_t result;
     char *httpMsg = NULL;
     FILE *f = NULL;
     std::string content;
     struct addrinfo *addr = NULL;
     SSL *ssl = NULL;
     SSL_CTX *ctx = NULL;
+    SSL_CTX *ctx_copy = NULL;
 
     // This feels like a bad practice
     bool freeNeeded = false;
+    bool secure;
 
     // this allows for setting the defaults if the user supplied NULL
     struct RequestOptions *m_opts = const_cast<struct RequestOptions *>(opts);
@@ -60,11 +63,28 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
     }
 
     initWindows();
+
+    BINFO("Getting url info");
     struct UrlInfo *urlInfo = getUrlInfo(url.c_str());
 
-    bool headersExist = opts->headers != NULL;
-    createHttpMsg(&httpMsg, opts->method, urlInfo->path, urlInfo->host, (headersExist ? opts->headers->data() : NULL), (headersExist ? opts->headers->size() : 0), "");
-        printf("this\n");
+    if (urlInfo == NULL) {
+        BERROR("Failed to get URL Info\n");
+        if (freeNeeded) free(m_opts);
+        return error_codes::FAILURE_TO_GET_URL_INFO;
+    } else {
+        secure = strcmp(urlInfo->proto, "http") != 0;
+    }
+
+    bool headersExist = m_opts->headers != NULL;
+    BINFO("Getting Http message\n");
+    createHttpMsg(&httpMsg, m_opts->method, urlInfo->path, urlInfo->host, (headersExist ? m_opts->headers->data() : NULL), (headersExist ? m_opts->headers->size() : 0), "");
+
+    if (httpMsg == NULL) {
+        BERROR("Failed to create Http message\n");
+        if (freeNeeded) free(m_opts);
+        freeUrlInfo(&urlInfo);
+        return error_codes::FAILURE_TO_CREATE_HTTP_MESSAGE;
+    }
 
     BINFO("Creating Socket\n");
     int sock = initSock(urlInfo->addrInfo);
@@ -104,7 +124,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
     // if the out param will be used for storage clear it
     if (!writeOutToFile) out.clear();
     else f = fopen(out.c_str(), "wb");
-    if (f == NULL) {
+    if (writeOutToFile && f == NULL) {
         BERROR("Error opening file: %s, errno: %i\n", out.c_str(), errno);
         freeHttpMsg(&httpMsg);
         freeUrlInfo(&urlInfo);
@@ -114,9 +134,12 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
     }
 
 
-    if (opts->secure) {
+    if (secure) {
         BINFO("Attempting to Init SSL\n");
         result = initSSL(sock, &ssl, &ctx);
+
+        printf("%x %x here\n", ssl, ctx);
+        ctx_copy = ctx;
 
         if (ssl == NULL || ctx == NULL) {
             BERROR("Failed to init SSL, result: %lli, error code: %i\n", result, getErrorCode());
@@ -163,6 +186,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             return error_codes::SSL_FAILURE_TO_WRITE_DATA;
         }
 
+        printf("%x %x\n", ssl, ctx);
         BINFO("Success\n");
     } else {
         BINFO("Attempting to send data\n");
@@ -197,7 +221,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
     freeHttpMsg(&httpMsg);
 
     BINFO("Starting read\n");
-    if (opts->secure) {
+    if (secure) {
         // Implement timeouts
         BINFO("SSL reading\n");
         result = SSL_read(ssl, receiveBuffer, RECEIVE_BUFFER_SIZE);
@@ -216,7 +240,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         result = recv(sock, receiveBuffer, RECEIVE_BUFFER_SIZE, 0);
 
         if (result <= 0) {
-            BERROR("Error reading data from socket: %i\n", SSL_get_error(ssl, result));
+            BERROR("Error reading data from socket: %i\n", errno);
             cleanupSock(sock);
             if (writeOutToFile) fclose(f);
             if (freeNeeded) free(m_opts);
@@ -251,7 +275,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
 
         do {
             BINFO("Attempting to fetch the rest if the header\n");
-            if (opts->secure) {
+            if (secure) {
                 result = SSL_read(ssl, receiveBuffer, RECEIVE_BUFFER_SIZE);
             } else {
                 result = recv(sock, receiveBuffer, RECEIVE_BUFFER_SIZE, 0);
@@ -290,13 +314,13 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         header = (char *) malloc(headerLen * sizeof(char));
 
         if (header == NULL) {
-                BERROR("Failed to allocate mem for header\n");
-                free(headerBuf);
-                cleanupSSL(&ssl, &ctx);
-                cleanupSock(sock);
-                cleanupWindows();
-                if (freeNeeded) free(m_opts);
-                return error_codes::FAILURE_TO_ALLOC_MEM;
+            BERROR("Failed to allocate mem for header\n");
+            free(headerBuf);
+            cleanupSSL(&ssl, &ctx);
+            cleanupSock(sock);
+            cleanupWindows();
+            if (freeNeeded) free(m_opts);
+            return error_codes::FAILURE_TO_ALLOC_MEM;
         }
 
         strncpy(header, headerBuf, headerLen);
@@ -304,7 +328,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         free(headerBuf);
     } else {
         contentStart += 4;
-        header = (char *) malloc((contentStart - receiveBuffer) * sizeof(char));
+        header = (char *) malloc((contentStart - receiveBuffer) * sizeof(char) + 1);
 
         if (header == NULL) {
                 BERROR("Failed to allocate mem for header\n");
@@ -316,6 +340,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         }
 
         strncpy(header, receiveBuffer, contentStart - receiveBuffer);
+        header[contentStart - receiveBuffer] = '\0';
     }
 
     BINFO("Attempting to parse header\n");
@@ -332,43 +357,53 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         return error_codes::BAD_RESPONSE_FAILED_TO_PARSE_HEADER;
     }
 
+
     free(header);
 
     if (writeOutToFile) {
-        BINFO("Writing content to %s\n", out.c_str());
+        // BINFO("Writing content to %s\n", out.c_str());
         fwrite(contentStart, sizeof(char), strlen(contentStart), f);
     } else {
         content.append(contentStart);
     }
 
     do {
-        if (opts->secure) {
-            BINFO("Reading data from SSL\n");
+        if (secure) {
+            // BINFO("Reading data from SSL\n");
             result = SSL_read(ssl, receiveBuffer, RECEIVE_BUFFER_SIZE);
         } else {
             BINFO("Reading data\n");
             result = recv(sock, receiveBuffer, RECEIVE_BUFFER_SIZE, 0);
         }
 
-        BINFO("Read %zu bytes\n", result);
+        // BINFO("Read %zu bytes\n", result);
+            printf("Pre: %x\n", ctx);
 
-        if (result == 0) break;
+        if (result == 0) {
+            break;
+        }
+
+        receiveBuffer[result] = '\0';
     
         if (writeOutToFile) {
-            BINFO("Writing %zu bytes to %s\n", result, out.c_str());
+            // BINFO("Writing %zu bytes to %s\n", result, out.c_str());
             fwrite(receiveBuffer, sizeof(char), strlen(receiveBuffer), f);
         } else {
             content.append(receiveBuffer);
         }
+            printf("Pos: %x\n", ctx);
     } while (strstr(receiveBuffer, "\r\n\r\n") == NULL);
     
     if (writeOutToFile) {
         fclose(f);
     }
 
-    if (opts->secure) {
-        cleanupSSL(&ssl, &ctx);
-    }
+    printf("Freeing ctx %i\n", (uint64_t)ctx - (uint64_t)ctx_copy);
+    cleanupSSL(&ssl, &ctx);
+    printf("This\n");
+
+    if (!writeOutToFile) out = content;
+    printf("here\n");
 
     freeResponseHeader(&headStruct);
 
@@ -397,15 +432,10 @@ template<> const std::string blib_http::request<const std::string>(const std::st
 }
 
 template<> int blib_http::request<int>(const std::string url, const std::string outfile, const struct RequestOptions *opts) {
-    printf("here\n");
     // This is to make sure that the const val is not modified
     std::string fname = outfile;   
 
-    printf("here\n");
-
     int result = _request(url, opts, fname, true);
-
-    printf("here\n");
 
     if (result != 0) {
         struct RequestError err {

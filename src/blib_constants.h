@@ -19,18 +19,22 @@
 #define BXINFO(...)
 
 #if BLIB_VERBOSITY >= 4
+#undef BXINFO
 #define BXINFO(...) fprintf(stdout, __VA_ARGS__)
 #endif
 
-#if BLIB_VERBOSITY >= 3 
+#if BLIB_VERBOSITY >= 3
+#undef BINFO
 #define BINFO(...) fprintf(stdout, __VA_ARGS__)
 #endif
 
 #if BLIB_VERBOSITY >= 2
+#undef BWARN
 #define BWARN(...) fprintf(stdout, __VA_ARGS__)
 #endif
 
 #if BLIB_VERBOSITY >= 1
+#undef BERROR
 #define BERROR(...) fprintf(stderr, __VA_ARGS__)
 #endif
 

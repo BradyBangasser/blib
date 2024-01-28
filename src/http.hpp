@@ -21,6 +21,8 @@ namespace blib_http {
         inline constexpr int FAILURE_TO_READ = -51;
         inline constexpr int BAD_RESPONSE_NO_HEADER = -60;
         inline constexpr int BAD_RESPONSE_FAILED_TO_PARSE_HEADER = -61;
+        inline constexpr int FAILURE_TO_GET_URL_INFO = -70;
+        inline constexpr int FAILURE_TO_CREATE_HTTP_MESSAGE = -80;
         inline constexpr int FAILURE_TO_ALLOC_MEM = -100;
     }
 

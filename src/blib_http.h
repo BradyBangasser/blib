@@ -65,7 +65,6 @@ struct Blib_Response {
 inline void initWindows() {
     #ifdef _WIN32
     // Why windows why
-    BINFO("Initializing winsock\n");
     struct WSAData winData;
     WSAStartup(MAKEWORD(2,2), &winData);
     #endif
@@ -77,7 +76,6 @@ Can be used on any OS
 */
 inline void cleanupWindows() {
     #ifdef _WIN32
-    BINFO("Cleaning up winsock\n");
     WSACleanup();
     #endif
 }
