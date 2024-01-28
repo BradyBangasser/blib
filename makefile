@@ -59,6 +59,6 @@ clean:
 
 test:
 	make $(EXE)
-	g++ test/main.cpp -o $(TESTEXE) $(GFLAGS) $(TESTFLAGS)
+	g++ test/main.cpp -std=$(CXX_STD) -o $(TESTEXE) $(GFLAGS) $(TESTFLAGS)
 	- ./$(TESTEXE)
 	rm $(TESTEXE)

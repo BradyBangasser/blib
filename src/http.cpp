@@ -11,7 +11,8 @@
 #include <string.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-
+#include <stdlib.h>
+#include <string.h>
 
 #define RECEIVE_BUFFER_SIZE 4096
 
@@ -23,28 +24,47 @@ using namespace blib_http;
     If writeOutToFile is false, all data will be stored in the out param, else the out param will be used as a file path to write to
 */
 int _request(const std::string url, const struct RequestOptions *opts, std::string &out, bool writeOutToFile) {
+    BINFO("Starting request to %s\n", url.c_str());
+
     size_t result;
-    char *httpMsg;
-    FILE *f;
+    char *httpMsg = NULL;
+    FILE *f = NULL;
     std::string content;
-    struct addrinfo *addr;
+    struct addrinfo *addr = NULL;
     SSL *ssl = NULL;
     SSL_CTX *ctx = NULL;
+
+    // This feels like a bad practice
+    bool freeNeeded = false;
+
+    // this allows for setting the defaults if the user supplied NULL
+    struct RequestOptions *m_opts = const_cast<struct RequestOptions *>(opts);
 
     char receiveBuffer[RECEIVE_BUFFER_SIZE];
     memset(receiveBuffer, '\0', sizeof(receiveBuffer));
 
 
-    // Likely will sigsegv
-    if (opts == NULL) {
+    // Only malloc if needed
+    if (m_opts == NULL) {
+        freeNeeded = true;
+        m_opts = (struct RequestOptions *) malloc(sizeof(struct RequestOptions));
+
+        if (m_opts == NULL) {
+            BERROR("Unable to allocate mem for options\n");
+            return error_codes::FAILURE_TO_ALLOC_MEM;
+        }
+
         struct RequestOptions options;
-        opts = &options;
+        
+        memcpy((void *) m_opts, &options, sizeof(struct RequestOptions));
     }
+
     initWindows();
     struct UrlInfo *urlInfo = getUrlInfo(url.c_str());
 
     bool headersExist = opts->headers != NULL;
     createHttpMsg(&httpMsg, opts->method, urlInfo->path, urlInfo->host, (headersExist ? opts->headers->data() : NULL), (headersExist ? opts->headers->size() : 0), "");
+        printf("this\n");
 
     BINFO("Creating Socket\n");
     int sock = initSock(urlInfo->addrInfo);
@@ -54,6 +74,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         freeHttpMsg(&httpMsg);
         freeUrlInfo(&urlInfo);
         cleanupWindows();
+        if (freeNeeded) free(m_opts);
         return error_codes::FAILURE_TO_INIT_SOCKET;
     }
     BINFO("Successfully Created Socket\n");
@@ -76,6 +97,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         freeHttpMsg(&httpMsg);
         freeUrlInfo(&urlInfo);
         cleanupWindows();
+        if (freeNeeded) free(m_opts);
         return error_codes::FAILURE_TO_CONNECT;
     }
 
@@ -87,6 +109,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         freeHttpMsg(&httpMsg);
         freeUrlInfo(&urlInfo);
         cleanupWindows();
+        if (freeNeeded) free(m_opts);
         return error_codes::FAILURE_TO_OPEN_OUT_FILE;
     }
 
@@ -99,6 +122,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             BERROR("Failed to init SSL, result: %lli, error code: %i\n", result, getErrorCode());
             freeHttpMsg(&httpMsg);
             freeUrlInfo(&urlInfo);
+            if (freeNeeded) free(m_opts);
             cleanupWindows();
             if (writeOutToFile) fclose(f);
             return error_codes::FAILURE_TO_INIT_SSL;
@@ -113,6 +137,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             BERROR("Error connecting SSL socket, result: %lli, error code: %i\n", result, SSL_get_error(ssl, result));
             freeHttpMsg(&httpMsg);
             freeUrlInfo(&urlInfo);
+            if (freeNeeded) free(m_opts);
             cleanupWindows();
             if (writeOutToFile) fclose(f);
             return error_codes::SSL_FAILURE_TO_CONNECT;
@@ -130,6 +155,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             freeUrlInfo(&urlInfo);
             cleanupSSL(&ssl, &ctx);
             cleanupSock(sock);
+            if (freeNeeded) free(m_opts);
             if (writeOutToFile) fclose(f);
             freeHttpMsg(&httpMsg);
             cleanupWindows();
@@ -153,6 +179,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
 
             freeUrlInfo(&urlInfo);
             cleanupSSL(&ssl, &ctx);
+            if (freeNeeded) free(m_opts);
             cleanupSock(sock);
             if (writeOutToFile) fclose(f);
             freeHttpMsg(&httpMsg);
@@ -179,6 +206,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             BERROR("Error reading data from SSL socket: %i\n", SSL_get_error(ssl, result));
             cleanupSSL(&ssl, &ctx);
             cleanupSock(sock);
+            if (freeNeeded) free(m_opts);
             if (writeOutToFile) fclose(f);
             cleanupWindows();
             return error_codes::SSL_FAILURE_TO_READ;
@@ -191,6 +219,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             BERROR("Error reading data from socket: %i\n", SSL_get_error(ssl, result));
             cleanupSock(sock);
             if (writeOutToFile) fclose(f);
+            if (freeNeeded) free(m_opts);
             cleanupWindows();
             return error_codes::FAILURE_TO_READ;
         }
@@ -212,62 +241,128 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             cleanupSSL(&ssl, &ctx);
             cleanupSock(sock);
             cleanupWindows();
+            if (freeNeeded) free(m_opts);
             if (writeOutToFile) fclose(f);
             return error_codes::FAILURE_TO_ALLOC_MEM;
         }
 
-        memcpy_s(headerBuf, strlen(receiveBuffer) + 1, receiveBuffer, strlen(receiveBuffer) + 1);
+        // probably requires error handling and checking
+        memcpy(headerBuf, receiveBuffer, strlen(receiveBuffer) + 1);
 
         do {
+            BINFO("Attempting to fetch the rest if the header\n");
             if (opts->secure) {
                 result = SSL_read(ssl, receiveBuffer, RECEIVE_BUFFER_SIZE);
             } else {
                 result = recv(sock, receiveBuffer, RECEIVE_BUFFER_SIZE, 0);
             }
+
+            if (result <= 0) {
+                BERROR("Bad Response, header not complete\n");
+                free(headerBuf);
+                cleanupSSL(&ssl, &ctx);
+                cleanupSock(sock);
+                if (freeNeeded) free(m_opts);
+                cleanupWindows();
+                return error_codes::BAD_RESPONSE_NO_HEADER;
+            }
+
             headerBuf = (char *) realloc(headerBuf, (strlen(headerBuf) + 1 + result) * sizeof(char));
+
+            if (headerBuf == NULL) {
+                BERROR("Failed to allocate mem for headerBuf\n");
+                cleanupSSL(&ssl, &ctx);
+                cleanupSock(sock);
+                cleanupWindows();
+                if (freeNeeded) free(m_opts);
+                return error_codes::FAILURE_TO_ALLOC_MEM;
+            }
+
             strncpy(headerBuf + strlen(headerBuf), receiveBuffer, result);
         } while (contentStart = strstr(receiveBuffer, "\r\n\r\n"), contentStart == NULL);
+
+        BINFO("Assembling header\n");
 
         contentStart = strstr(headerBuf, "\r\n\r\n");
 
         size_t headerLen = contentStart - headerBuf + 4;
 
         header = (char *) malloc(headerLen * sizeof(char));
+
+        if (header == NULL) {
+                BERROR("Failed to allocate mem for header\n");
+                free(headerBuf);
+                cleanupSSL(&ssl, &ctx);
+                cleanupSock(sock);
+                cleanupWindows();
+                if (freeNeeded) free(m_opts);
+                return error_codes::FAILURE_TO_ALLOC_MEM;
+        }
+
         strncpy(header, headerBuf, headerLen);
 
         free(headerBuf);
     } else {
         contentStart += 4;
         header = (char *) malloc((contentStart - receiveBuffer) * sizeof(char));
+
+        if (header == NULL) {
+                BERROR("Failed to allocate mem for header\n");
+                cleanupSSL(&ssl, &ctx);
+                cleanupSock(sock);
+                if (freeNeeded) free(m_opts);
+                cleanupWindows();
+                return error_codes::FAILURE_TO_ALLOC_MEM;
+        }
+
         strncpy(header, receiveBuffer, contentStart - receiveBuffer);
     }
 
+    BINFO("Attempting to parse header\n");
+
     struct Blib_Response_Header *headStruct = parseResponseHeader(header);
+
+    if (headStruct == NULL) {
+        BERROR("Failed to parse header\n");
+        free(header);
+        cleanupSSL(&ssl, &ctx);
+        cleanupSock(sock);
+        cleanupWindows();
+        if (freeNeeded) free(m_opts);
+        return error_codes::BAD_RESPONSE_FAILED_TO_PARSE_HEADER;
+    }
+
     free(header);
 
-    if (opts->outFile == NULL) {
-        content.append(contentStart);
-    } else {
+    if (writeOutToFile) {
+        BINFO("Writing content to %s\n", out.c_str());
         fwrite(contentStart, sizeof(char), strlen(contentStart), f);
+    } else {
+        content.append(contentStart);
     }
 
     do {
         if (opts->secure) {
+            BINFO("Reading data from SSL\n");
             result = SSL_read(ssl, receiveBuffer, RECEIVE_BUFFER_SIZE);
         } else {
+            BINFO("Reading data\n");
             result = recv(sock, receiveBuffer, RECEIVE_BUFFER_SIZE, 0);
         }
 
+        BINFO("Read %zu bytes\n", result);
+
         if (result == 0) break;
     
-        if (opts->outFile == NULL) {
-            content.append(receiveBuffer);
-        } else {
+        if (writeOutToFile) {
+            BINFO("Writing %zu bytes to %s\n", result, out.c_str());
             fwrite(receiveBuffer, sizeof(char), strlen(receiveBuffer), f);
+        } else {
+            content.append(receiveBuffer);
         }
     } while (strstr(receiveBuffer, "\r\n\r\n") == NULL);
     
-    if (opts->outFile != NULL) {
+    if (writeOutToFile) {
         fclose(f);
     }
 
@@ -281,8 +376,44 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
 
     cleanupWindows();
 
-    return NULL;
+    if (freeNeeded) free(m_opts);
+
+    return 0;
 }
 
-int request(const std::string url, const std::string outFile, struct RequestOptions *opts) {
+template<> const std::string blib_http::request<const std::string>(const std::string url, const struct RequestOptions *opts) {
+    std::string content;
+    int result = _request(url, opts, content, false);
+
+    if (result != 0) {
+        struct RequestError err {
+            result
+        };
+
+        throw err;
+    }
+
+    return content;
+}
+
+template<> int blib_http::request<int>(const std::string url, const std::string outfile, const struct RequestOptions *opts) {
+    printf("here\n");
+    // This is to make sure that the const val is not modified
+    std::string fname = outfile;   
+
+    printf("here\n");
+
+    int result = _request(url, opts, fname, true);
+
+    printf("here\n");
+
+    if (result != 0) {
+        struct RequestError err {
+            result
+        };
+
+        throw err;
+    } 
+
+    return 0;
 }

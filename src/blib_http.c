@@ -114,7 +114,8 @@ void cleanupSSL(SSL **ssl, SSL_CTX **ctx) {
         SSL_free(*ssl);
         *ssl = NULL;
     }
-    BXINFO("Freed\n")
+
+    BXINFO("Freed\n");
 }
 
 int createHttpMsg(char **buf, const char *method, const char *path, const char *host, struct Blib_Header *headers, size_t headersLen, const char *msg) {
@@ -363,6 +364,7 @@ struct UrlInfo *getUrlInfo(const char *url) {
 }
 
 void freeUrlInfo(struct UrlInfo **urlInfo) {
+    BXINFO("Freeing Url Info\n");
     if (*urlInfo != NULL) {
         if ((*urlInfo)->proto != NULL) free((char *) (*urlInfo)->proto);
         if ((*urlInfo)->host != NULL) free((char *) (*urlInfo)->host);
@@ -372,8 +374,6 @@ void freeUrlInfo(struct UrlInfo **urlInfo) {
         free(*urlInfo);
         *urlInfo = NULL;
     }
-
-
 }
 
 const char *createHeaderString(struct Blib_Header *header) {
@@ -402,6 +402,7 @@ void freeHeaderString(const char **headerString) {
 }
 
 struct Blib_Response_Header *parseResponseHeader(const char *rawHeader) {
+    BXINFO("Attemtping to parse header: %s\n", rawHeader);
     // Personal challenge for later, rewrite to only use 1 malloc call
     char *curs, *m_header, *currentHeader;
     char *raw, *statusMsg;
@@ -412,31 +413,62 @@ struct Blib_Response_Header *parseResponseHeader(const char *rawHeader) {
     struct Blib_Header *headers = malloc(0);
 
     if (headers == NULL) {
+        BXINFO("Error allocating mem for headers array\n");
         return NULL;
     }
 
     curs = strstr(rawHeader, "\r\n\r\n");
     if (curs == NULL) {
+        BXINFO("Header is invalid\n");
+        free(headers);
         return NULL;
     }
 
     headerLen = curs - rawHeader;
 
     raw = malloc(headerLen * sizeof(char));
-    m_header = malloc(headerLen * sizeof(char));
 
-    if (raw == NULL || m_header == NULL) {
+    if (raw == NULL) {
+        free(headers);
+        BXINFO("Failed to allocate mem for header copy\n");
         return NULL;
     }
 
+    m_header = malloc(headerLen * sizeof(char));
+
+    if (m_header == NULL) {
+        free(raw); 
+        free(headers);
+        BXINFO("Failed to allocate mem for header copy\n");
+        return NULL;
+    }
+
+    BXINFO("Attempting to parse first line of header\n");
     strncpy(raw, rawHeader, headerLen);
     strncpy(m_header, rawHeader, headerLen);
 
     curs = strtok(m_header, "\r\n");
 
+    if (curs == NULL) {
+        free(raw);
+        free(m_header);
+        free(headers);
+        BXINFO("Invalid Header Syntax (Unable to parse first line)\n");
+        return NULL;
+    }
+
     // process first line
     // Expect format HTTP/x.x status (3 digits) msg
     curs = strstr(curs, " ");
+
+    if (curs == NULL) {
+        free(raw);
+        free(m_header);
+        free(headers);
+        BXINFO("Invalid Header Syntax (Unable to parse first line)\n");
+        return NULL;
+    }
+
     // Remove Space
     curs++;
     char statusString[4];
@@ -450,27 +482,70 @@ struct Blib_Response_Header *parseResponseHeader(const char *rawHeader) {
     lineLen = strlen(curs);
 
     statusMsg = malloc(lineLen + 1);
+
+    if (statusMsg == NULL) {
+        BXINFO("Unable to allocate mem for status msg\n");
+        free(raw);
+        free(m_header);
+        free(headers);
+        return NULL;
+    }
+
     strncpy(statusMsg, curs, lineLen);
     statusMsg[strlen(curs)] = '\0';
+
+    BXINFO("Starting header parsing\n");
 
     // It may be worth adding another loop and only calling malloc once for all of the structs
     // It also may be worth it to get rid of the structs and just use strings and realloc calls to save memory or speed
     while (currentHeader = strtok(NULL, "\r\n"), currentHeader != NULL && strlen(currentHeader) > 0) {
         char *headerString = malloc(strlen(currentHeader) + 1 * sizeof(char));
+
+        if (headerString == NULL) {
+            free(raw);
+            free(statusMsg);
+            free(m_header);
+            free(headers);
+            BXINFO("Unable to allocate mem for status msg\n");
+            return NULL;
+        }
+
         headerString[strlen(currentHeader)] = '\0';
         memcpy(headerString, currentHeader, strlen(currentHeader));
 
         curs = strstr(headerString, ": ");
+
+        if (curs == NULL) {
+            free(raw);
+            free(headerString);
+            free(statusMsg);
+            free(headers);
+            free(m_header);
+            BXINFO("Invalid Header Syntax (Unable to parse first line)\n");
+            return NULL;
+        }
+
         *curs = '\0';
         memcpy(curs + 1, curs + 2, strlen(curs + 1));
 
 
         numberOfHeaders++;
         headers = realloc(headers, numberOfHeaders * sizeof(struct Blib_Header));
+        if (headers == NULL) {
+            free(raw);
+            free(headerString);
+            free(statusMsg);
+            free(headers);
+            free(m_header);
+            BXINFO("Invalid Header Syntax (Unable to parse first line)\n");
+            return NULL;
+        }
         headers[numberOfHeaders - 1] = (struct Blib_Header){
             headerString,
             curs + 1
         };
+
+        BXINFO("Parsed header: %s\n", headerString);
     }
 
     struct Blib_Response_Header res = {

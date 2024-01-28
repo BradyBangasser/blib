@@ -3,7 +3,10 @@
 
 // For testing
 // -----
+#if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
+#endif
+
 #include <openssl/ssl.h>
 
 // -----
@@ -12,8 +15,11 @@
 #include "../src/blib_http.h"
 #include "../src/http.hpp"
 
+using namespace blib_http;
+
 int main() {
-    struct RequestOptions opts;
-    printf("%llx\n", (long long unsigned int) request("https://www.google.com", &opts));
+    const std::string url = "https://google.com";
+    int result = request<int>(url, "st");
+    
     return 0;
 }

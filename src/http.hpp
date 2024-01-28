@@ -19,6 +19,8 @@ namespace blib_http {
         inline constexpr int FAILURE_TO_WRITE_DATA = -41;
         inline constexpr int SSL_FAILURE_TO_READ = -50;
         inline constexpr int FAILURE_TO_READ = -51;
+        inline constexpr int BAD_RESPONSE_NO_HEADER = -60;
+        inline constexpr int BAD_RESPONSE_FAILED_TO_PARSE_HEADER = -61;
         inline constexpr int FAILURE_TO_ALLOC_MEM = -100;
     }
 
@@ -32,12 +34,28 @@ namespace blib_http {
         bool secure = true;
     };
 
+    struct RequestError {
+        // error code
+        int code;
+    };
+
+    template<typename T>
+    T request(const std::string, const struct RequestOptions * = NULL);
+    template<typename T>
+    T request(const std::string, const std::string, const struct RequestOptions * = NULL);
+
     /*
         url
     */
-    int request(const std::string, const std::string, struct RequestOptions * = NULL);
-    const char *request(const std::string, struct RequestOptions * = NULL);
+    template<> int request<int>(const std::string, const std::string, const struct RequestOptions *);
 
+
+    template<> const std::string request<const std::string>(const std::string, const struct RequestOptions *);
+
+    template<typename T> void request(const std::string, const struct RequestOptions *) {
+        printf("Here\n");
+        return;
+    }
 }
 
 #endif

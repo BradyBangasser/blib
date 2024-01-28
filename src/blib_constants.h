@@ -8,7 +8,7 @@
 #define BLIB_OK 0
 
 #ifndef BLIB_VERSBOSITY
-#define BLIB_VERBOSITY 3
+#define BLIB_VERBOSITY 4
 #endif
 
 #define BINFO(...)
