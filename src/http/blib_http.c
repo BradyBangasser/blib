@@ -1,7 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 
 #include "blib_http.h"
-#include "blib_constants.h"
+#include "../blib_constants.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -74,7 +74,7 @@ int initSSL(int sock, SSL **ssl, SSL_CTX **ctx) {
         ssl = NULL;
         return -1;
     }
-    BXINFO("Created SSL Content 0x%x\n", *ctx);
+    BXINFO("Created SSL Content 0x%x\n", (unsigned int)*ctx);
 
     BXINFO("Attempting to create SSL structure\n");
     *ssl = SSL_new(*ctx);
@@ -87,7 +87,7 @@ int initSSL(int sock, SSL **ssl, SSL_CTX **ctx) {
         return -2;
     }
 
-    BXINFO("Successfully created SSL structure, 0x%x\n", *ssl);
+    BXINFO("Successfully created SSL structure, 0x%x\n", (unsigned int) *ssl);
     BXINFO("Attempting to set SSL file descriptor\n");
     int result = SSL_set_fd(*ssl, sock);
 
@@ -104,7 +104,6 @@ int initSSL(int sock, SSL **ssl, SSL_CTX **ctx) {
 }
 
 void cleanupSSL(SSL **ssl, SSL_CTX **ctx) {
-    printf("0x%x 0x%x\n", *ssl, *ctx);
     BXINFO("Attempting to cleanup SSL\n");
     if (*ssl != NULL) {
         BXINFO("Freeing struct\n");
@@ -116,7 +115,6 @@ void cleanupSSL(SSL **ssl, SSL_CTX **ctx) {
     if (*ctx != NULL) {
         BXINFO("Freeing context\n");
         SSL_CTX_free(*ctx);
-        printf("there\n");
         *ctx = NULL;
     }
 
@@ -481,7 +479,7 @@ struct Blib_Response_Header *parseResponseHeader(const char *rawHeader) {
     curs++;
     char statusString[4];
     memcpy(statusString, curs, 3);
-    statusString[4] = '\0';
+    statusString[3] = '\0';
     status = atoi(statusString);
 
     curs = strstr(curs, " ");

@@ -2,9 +2,9 @@
 #ifndef BLIB_HTTP
 #define BLIB_HTTP
 
-#include "blib_http.h"
 #include <string>
 #include <vector>
+#include "blib_http.h"
 
 #define BLIB_HEADER(n, v) { n, v, (strlen(n) + strlen(v)) }
 
@@ -36,6 +36,11 @@ namespace blib_http {
         bool secure = true;
     };
 
+    struct Response {
+        uint16_t status;
+        std::string content;
+    };
+
     struct RequestError {
         // error code
         int code;
@@ -50,14 +55,8 @@ namespace blib_http {
         url
     */
     template<> int request<int>(const std::string, const std::string, const struct RequestOptions *);
-
-
     template<> const std::string request<const std::string>(const std::string, const struct RequestOptions *);
-
-    template<typename T> void request(const std::string, const struct RequestOptions *) {
-        printf("Here\n");
-        return;
-    }
+    template<> const struct Response request<const struct Response>(const std::string, const struct RequestOptions *);
 }
 
 #endif

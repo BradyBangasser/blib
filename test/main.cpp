@@ -11,9 +11,9 @@
 
 // -----
 
-#include "../src/https_nw.h"
-#include "../src/blib_http.h"
-#include "../src/http.hpp"
+#include "../src/http/https_nw.h"
+#include "../src/http/blib_http.h"
+#include "../src/http/http.hpp"
 
 using namespace blib_http;
 

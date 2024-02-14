@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include <openssl/ssl.h>
-#include "blib_constants.h"
+#include "../blib_constants.h"
 
 #ifndef _WIN32
 #include <sys/types.h>

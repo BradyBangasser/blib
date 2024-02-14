@@ -1,6 +1,6 @@
 #include "http.hpp"
 #include "blib_http.h"
-#include "blib_constants.h"
+#include "../blib_constants.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
@@ -24,7 +24,7 @@ using namespace blib_http;
     Internal implemention of the request functions
     If writeOutToFile is false, all data will be stored in the out param, else the out param will be used as a file path to write to
 */
-int _request(const std::string url, const struct RequestOptions *opts, std::string &out, bool writeOutToFile) {
+int _request(const std::string url, const struct RequestOptions *opts, std::string &out, bool writeOutToFile, uint16_t *httpCode = NULL) {
     BINFO("Starting request to %s\n", url.c_str());
 
     int64_t result;
@@ -138,7 +138,6 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         BINFO("Attempting to Init SSL\n");
         result = initSSL(sock, &ssl, &ctx);
 
-        printf("%x %x here\n", ssl, ctx);
         ctx_copy = ctx;
 
         if (ssl == NULL || ctx == NULL) {
@@ -186,7 +185,6 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             return error_codes::SSL_FAILURE_TO_WRITE_DATA;
         }
 
-        printf("%x %x\n", ssl, ctx);
         BINFO("Success\n");
     } else {
         BINFO("Attempting to send data\n");
@@ -357,7 +355,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         return error_codes::BAD_RESPONSE_FAILED_TO_PARSE_HEADER;
     }
 
-
+    *httpCode = headStruct->status;
     free(header);
 
     if (writeOutToFile) {
@@ -376,8 +374,7 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
             result = recv(sock, receiveBuffer, RECEIVE_BUFFER_SIZE, 0);
         }
 
-        // BINFO("Read %zu bytes\n", result);
-            printf("Pre: %x\n", ctx);
+        BINFO("Read %zu bytes\n", result);
 
         if (result == 0) {
             break;
@@ -386,24 +383,20 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         receiveBuffer[result] = '\0';
     
         if (writeOutToFile) {
-            // BINFO("Writing %zu bytes to %s\n", result, out.c_str());
+            BINFO("Writing %zu bytes to %s\n", result, out.c_str());
             fwrite(receiveBuffer, sizeof(char), strlen(receiveBuffer), f);
         } else {
             content.append(receiveBuffer);
         }
-            printf("Pos: %x\n", ctx);
     } while (strstr(receiveBuffer, "\r\n\r\n") == NULL);
     
     if (writeOutToFile) {
         fclose(f);
     }
 
-    printf("Freeing ctx %i\n", (uint64_t)ctx - (uint64_t)ctx_copy);
     cleanupSSL(&ssl, &ctx);
-    printf("This\n");
 
     if (!writeOutToFile) out = content;
-    printf("here\n");
 
     freeResponseHeader(&headStruct);
 
@@ -446,4 +439,20 @@ template<> int blib_http::request<int>(const std::string url, const std::string 
     } 
 
     return 0;
+}
+
+template<> const blib_http::Response blib_http::request<const blib_http::Response>(const std::string url, const struct blib_http::RequestOptions *opts) {
+    struct blib_http::Response res {};
+
+    int result = _request(url, opts, res.content, false, &res.status);
+
+    if (result != 0) {
+        struct RequestError err {
+            result
+        };
+
+        throw err;
+    }
+
+    return res;
 }
