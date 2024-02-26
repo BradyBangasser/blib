@@ -355,11 +355,11 @@ int _request(const std::string url, const struct RequestOptions *opts, std::stri
         return error_codes::BAD_RESPONSE_FAILED_TO_PARSE_HEADER;
     }
 
-    *httpCode = headStruct->status;
+    if (httpCode != NULL) *httpCode = headStruct->status;
     free(header);
 
     if (writeOutToFile) {
-        // BINFO("Writing content to %s\n", out.c_str());
+        BINFO("Writing content to %s\n", out.c_str());
         fwrite(contentStart, sizeof(char), strlen(contentStart), f);
     } else {
         content.append(contentStart);

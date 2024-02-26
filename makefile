@@ -3,7 +3,7 @@ VERSION := 1.0.0
 OUT := out
 LIB := lib
 
-EXE := blib.a
+EXE := libblib.a
 
 SPACE := $(eval) $(eval)
 
@@ -83,7 +83,12 @@ $(OUT)/%.c.o: $(SRC)/%.c | $(OUT)
 	$(CC) -c -o $@ $< $(C_FLAGS) -std=c$(C_STD)
 $(foreach mod,$(MODULES),$(eval $(call FILE_RECIPE,$(mod),c,$(C_FLAGS) -std=c$(C_STD),$(CC))))
 
-.PHONY: build clean
+.PHONY: build clean test
 
 $(EXE): $(CXX_OBJS) $(C_OBJS) $(F_OBJS) $(ASM_OBJS)
 	ar rcs $(EXE) $(CXX_OBJS) $(C_OBJS) $(F_OBJS) $(ASM_OBJS)
+
+test:
+	make
+	g++ test/main.cpp -L. -lblib -lcrypto -Llib -lblib -lssl -lcrypto -lcrypt32 -lWs2_32
+	./a.exe

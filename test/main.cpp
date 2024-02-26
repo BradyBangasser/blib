@@ -18,7 +18,7 @@
 using namespace blib_http;
 
 int main() {
-    const std::string url = "https://www.google.com";
+    const std::string url = "";
     std::string result = request<const std::string>(url);
     int result1 = request<int>(url, "out.html");
     // printf("%s this\n", result.c_str());
