@@ -24,8 +24,9 @@ static int rmkdir(const char *path, mode_t mode) {
       return -1;
     }
 
-    cpath = strndup(path, (unsigned long long) lastSlash - (unsigned long long) path - 1);
+    cpath = strndup(path, lastSlash - path - 1);
     res = rmkdir(cpath, mode);
+    free(strndup);
 
     if (res == -1) {
       return -1;
