@@ -26,7 +26,7 @@ static int rmkdir(const char *path, mode_t mode) {
 
     cpath = strndup(path, lastSlash - path - 1);
     res = rmkdir(cpath, mode);
-    free(strndup);
+    free(cpath);
 
     if (res == -1) {
       return -1;
