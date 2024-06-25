@@ -8,6 +8,6 @@
 
 static inline char *rstrchr(const char *str, char c) {
   int i = strlen(str);
-  while (i-- > 0) if (str[i] == c) return str + i;
+  while (i-- > 0) if (str[i] == c) return (char *) (str + i);
   return NULL;
 }
