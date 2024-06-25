@@ -7,7 +7,7 @@
  * Recursively create directory
  * Unix Only because Windows is weird
  */
-static int rmkdir(const char *path, mode_t mode) {
+int rmkdir(const char *path, mode_t mode) {
   char *cpath, *lastSlash;
   int res;
 
