@@ -4,7 +4,7 @@
 
 /**
  * strchr but it looks for the last instance of a character
-*/
+ */
 
 static inline char *rstrchr(const char *str, char c) {
   int i = strlen(str);
